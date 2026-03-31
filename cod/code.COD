@@ -1,0 +1,36 @@
+ECRC Type a number:  FINC
+ECRL
+EMPI 1
+LIRE
+EMPI 0
+EMPI 1
+CONT
+EMPI 2
+EMPI 2
+MULT
+MULT
+AFFE
+ECRC Of block FINC
+ECRL
+ECRC In block FINC
+ECRL
+ECRC Your number multiplied by 4' is:  FINC
+EMPI 0
+CONT
+ECRE
+ECRL
+EMPI 0
+EMPI 0
+CONT
+EMPI 0
+CONT
+MULT
+AFFE
+ECRC Of block FINC
+ECRL
+ECRC Your number multiplied by 4 then by itself is:  FINC
+EMPI 0
+CONT
+ECRE
+ECRL
+STOP
