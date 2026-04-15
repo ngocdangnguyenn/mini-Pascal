@@ -1,3 +1,5 @@
+{ Tache 3 : generation de code et interpretation — operations arithmetiques. }
+
 PROGRAMME myApp; {this is a {nested} comment}
 CONST
 	x = 'a',
@@ -13,7 +15,7 @@ DEBUT
 		ECRIRE('In block');
 		ECRIRE('Your number multiplied by 4'' is: ', z); {this is a {nested} comment in the block}
 		z := z * z
-	FIN
+	FIN;
 	ECRIRE('Of block');
 	ECRIRE('Your number multiplied by 4 then by itself is: ', z)
 FIN.

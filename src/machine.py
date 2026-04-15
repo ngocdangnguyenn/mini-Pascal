@@ -14,11 +14,17 @@ CONT = 12
 STOP = 13
 ALLE = 14
 ALSN = 15
+SAVEPB = 16
+EMPL = 17
+AFFR = 18
+APPF = 19
+RETN = 20
 
 TAILLE_MAX_MEM = 10000
 MEMVAR = [0] * TAILLE_MAX_MEM  
 P_CODE = [0] * TAILLE_MAX_MEM  
 CO = 0                          
+PB = 0
 
 PILEX = [0] * TAILLE_MAX_MEM
 SOM_PILEX = -1
@@ -27,7 +33,7 @@ PILOP = [0] * 100
 SOM_PILOP = -1
 
 def INTERPRETER():
-    global CO, SOM_PILEX
+    global CO, SOM_PILEX, PB
     while P_CODE[CO] != STOP:
         if P_CODE[CO] == ADDI:
             PILEX[SOM_PILEX-1] = PILEX[SOM_PILEX-1] + PILEX[SOM_PILEX]
@@ -89,6 +95,32 @@ def INTERPRETER():
             else:
                 CO += 2
             SOM_PILEX -= 1
+        elif P_CODE[CO] == SAVEPB:
+            SOM_PILEX += 1
+            PILEX[SOM_PILEX] = PB
+            CO += 1
+        elif P_CODE[CO] == EMPL:
+            SOM_PILEX += 1
+            PILEX[SOM_PILEX] = PILEX[PB + P_CODE[CO + 1]]
+            CO += 2
+        elif P_CODE[CO] == AFFR:
+            PILEX[PB - 2] = PILEX[SOM_PILEX]
+            SOM_PILEX -= 1
+            CO += 1
+        elif P_CODE[CO] == APPF:
+            addr = P_CODE[CO + 1]
+            N    = P_CODE[CO + 2]
+            SOM_PILEX += 1
+            PILEX[SOM_PILEX] = CO + 3
+            PB = SOM_PILEX - N
+            CO = addr
+        elif P_CODE[CO] == RETN:
+            N = P_CODE[CO + 1]
+            ret_addr = PILEX[PB + N]
+            old_PB   = PILEX[PB - 1]
+            SOM_PILEX = PB - 2
+            PB  = old_PB
+            CO  = ret_addr
         elif P_CODE[CO] == STOP:
             break
         else:
@@ -97,9 +129,8 @@ def INTERPRETER():
 
 def CREER_FICHIER_CODE(nom_fichier_source):
     import os
-    base, ext = os.path.splitext(nom_fichier_source)
-    proj_root = os.path.abspath(os.path.join(os.path.dirname(nom_fichier_source), '..'))
-    cod_dir = os.path.join(proj_root, 'cod')
+    base = os.path.splitext(nom_fichier_source)[0]
+    cod_dir = 'cod'
     os.makedirs(cod_dir, exist_ok=True)
     nom_fichier_cod = os.path.join(cod_dir, os.path.basename(base) + '.COD')
     with open(nom_fichier_cod, 'w', encoding='utf-8') as f:
@@ -107,7 +138,8 @@ def CREER_FICHIER_CODE(nom_fichier_source):
             ADDI: 'ADDI', SOUS: 'SOUS', MULT: 'MULT', DIVI: 'DIVI', MOIN: 'MOIN',
             AFFE: 'AFFE', LIRE: 'LIRE', ECRL: 'ECRL', ECRE: 'ECRE', ECRC: 'ECRC',
             FINC: 'FINC', EMPI: 'EMPI', CONT: 'CONT', STOP: 'STOP',
-            ALLE: 'ALLE', ALSN: 'ALSN'
+            ALLE: 'ALLE', ALSN: 'ALSN',
+            SAVEPB: 'SAVEPB', EMPL: 'EMPL', AFFR: 'AFFR', APPF: 'APPF', RETN: 'RETN'
         }
         i = 0
         while i < CO:
@@ -125,6 +157,15 @@ def CREER_FICHIER_CODE(nom_fichier_source):
             elif opcode in (ALLE, ALSN):
                 f.write(f'{op_name} {P_CODE[i+1]}\n')
                 i += 2
+            elif opcode in (EMPL, RETN):
+                f.write(f'{op_name} {P_CODE[i+1]}\n')
+                i += 2
+            elif opcode == APPF:
+                f.write(f'{op_name} {P_CODE[i+1]} {P_CODE[i+2]}\n')
+                i += 3
+            elif opcode in (SAVEPB, AFFR):
+                f.write(f'{op_name}\n')
+                i += 1
             elif opcode == ECRC:
                 s = ''
                 j = i + 1

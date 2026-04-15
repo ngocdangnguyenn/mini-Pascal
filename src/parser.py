@@ -1,12 +1,13 @@
 from src.token import TokenType
 import src.lexer as lexer
-from src.table_ident import CHERCHER, INSERER, T_IDENT, TABLE_IDENT
+from src.table_ident import CHERCHER, INSERER, SUPPRIMER, T_IDENT, TABLE_IDENT
 import src.machine as machine
 
 UNILEX = None
 NB_CONST_CHAINE = 0
 VAL_DE_CONST_CHAINE = []
 DERNIERE_ADRESSE_VAR_GLOB = -1
+FONCTION_COURANTE = None
 
 def ANASYNT():
     global UNILEX
@@ -30,6 +31,14 @@ def PROG():
                 if (UNILEX == TokenType.MOTCLE) and (lexer.CHAINE == 'VAR'):
                     if not DECL_VAR():
                         return False
+                if (UNILEX == TokenType.MOTCLE) and (lexer.CHAINE == 'FONCTION'):
+                    machine.P_CODE[machine.CO] = machine.ALLE
+                    alle_slot = machine.CO + 1
+                    machine.CO += 2
+                    while (UNILEX == TokenType.MOTCLE) and (lexer.CHAINE == 'FONCTION'):
+                        if not DEF_FCT():
+                            return False
+                    machine.P_CODE[alle_slot] = machine.CO
                 if BLOC():
                     machine.P_CODE[machine.CO] = machine.STOP
                     machine.CO += 1
@@ -189,6 +198,119 @@ def BLOC():
 def INSTRUCTION():
     return (INST_COND() or INST_NON_COND())
 
+def DEF_FCT():
+    global UNILEX, FONCTION_COURANTE
+    if not ((UNILEX == TokenType.MOTCLE) and (lexer.CHAINE == 'FONCTION')):
+        return False
+    UNILEX = lexer.ANALEX()
+    if UNILEX != TokenType.IDENT:
+        lexer.MESSAGE_ERREUR = "Attendu nom de fonction après FONCTION"
+        lexer.ERREUR(3)
+    nom_fct = lexer.CHAINE
+    if CHERCHER(nom_fct) != -1:
+        lexer.MESSAGE_ERREUR = f"Fonction '{nom_fct}' déjà définie"
+        lexer.ERREUR(3)
+    idx_fct = INSERER(nom_fct, T_IDENT.FONCTION)
+    UNILEX = lexer.ANALEX()
+    if UNILEX != TokenType.PAROUV:
+        lexer.MESSAGE_ERREUR = f"Attendu '(' après nom de fonction, trouvé {lexer.CHAINE}"
+        lexer.ERREUR(3)
+    UNILEX = lexer.ANALEX()
+    params = []
+    if UNILEX == TokenType.IDENT:
+        while True:
+            nom_param = lexer.CHAINE
+            if CHERCHER(nom_param) != -1:
+                lexer.MESSAGE_ERREUR = f"Paramètre '{nom_param}' : nom déjà utilisé par un identificateur existant"
+                lexer.ERREUR(3)
+            pidx = INSERER(nom_param, T_IDENT.PARAMETRE)
+            TABLE_IDENT[pidx].adrv = len(params)
+            params.append(nom_param)
+            UNILEX = lexer.ANALEX()
+            if UNILEX == TokenType.VIRG:
+                UNILEX = lexer.ANALEX()
+                if UNILEX != TokenType.IDENT:
+                    lexer.MESSAGE_ERREUR = "Attendu nom de paramètre après ','"
+                    lexer.ERREUR(3)
+            else:
+                break
+    if UNILEX != TokenType.PARFER:
+        lexer.MESSAGE_ERREUR = f"Attendu ')' dans définition de fonction, trouvé {lexer.CHAINE}"
+        lexer.ERREUR(3)
+    UNILEX = lexer.ANALEX()
+    if UNILEX != TokenType.DEUXPTS:
+        lexer.MESSAGE_ERREUR = f"Attendu ':' après ')' dans définition de fonction, trouvé {lexer.CHAINE}"
+        lexer.ERREUR(3)
+    UNILEX = lexer.ANALEX()
+    if not TYP():
+        lexer.MESSAGE_ERREUR = "Attendu 'ENTIER' comme type de retour"
+        lexer.ERREUR(3)
+    if UNILEX != TokenType.PTVIRG:
+        lexer.MESSAGE_ERREUR = f"Attendu ';' après type de retour, trouvé {lexer.CHAINE}"
+        lexer.ERREUR(3)
+    UNILEX = lexer.ANALEX()
+    TABLE_IDENT[idx_fct].nb_params = len(params)
+    TABLE_IDENT[idx_fct].adresse   = machine.CO
+    FONCTION_COURANTE  = nom_fct
+    if not BLOC():
+        lexer.MESSAGE_ERREUR = f"Bloc attendu dans définition de '{nom_fct}'"
+        lexer.ERREUR(3)
+    machine.P_CODE[machine.CO]     = machine.RETN
+    machine.P_CODE[machine.CO + 1] = len(params)
+    machine.CO += 2
+    if UNILEX != TokenType.PTVIRG:
+        lexer.MESSAGE_ERREUR = f"Attendu ';' après FIN de fonction '{nom_fct}', trouvé {lexer.CHAINE}"
+        lexer.ERREUR(3)
+    UNILEX = lexer.ANALEX()
+    for nom_p in params:
+        SUPPRIMER(nom_p)
+    FONCTION_COURANTE  = None
+    return True
+
+def TYP():
+    global UNILEX
+    if (UNILEX == TokenType.MOTCLE) and (lexer.CHAINE == 'ENTIER'):
+        UNILEX = lexer.ANALEX()
+        return True
+    return False
+
+def APP_FCT(nom_fct, idx_fct):
+    global UNILEX
+    nb_params = TABLE_IDENT[idx_fct].nb_params
+    addr_fct  = TABLE_IDENT[idx_fct].adresse
+    UNILEX = lexer.ANALEX()  # consume '('
+    machine.P_CODE[machine.CO]     = machine.EMPI
+    machine.P_CODE[machine.CO + 1] = 0
+    machine.CO += 2
+    machine.P_CODE[machine.CO] = machine.SAVEPB
+    machine.CO += 1
+    count = 0
+    if UNILEX != TokenType.PARFER:
+        if EXP():
+            count += 1
+            while UNILEX == TokenType.VIRG:
+                UNILEX = lexer.ANALEX()
+                if EXP():
+                    count += 1
+                else:
+                    lexer.MESSAGE_ERREUR = f"Expression attendue dans appel de '{nom_fct}'"
+                    lexer.ERREUR(3)
+        else:
+            lexer.MESSAGE_ERREUR = f"Expression attendue dans appel de '{nom_fct}'"
+            lexer.ERREUR(3)
+    if count != nb_params:
+        lexer.MESSAGE_ERREUR = f"Appel de '{nom_fct}': {nb_params} paramètre(s) attendu(s), {count} fourni(s)"
+        lexer.ERREUR(3)
+    if UNILEX != TokenType.PARFER:
+        lexer.MESSAGE_ERREUR = f"Attendu ')' dans appel de '{nom_fct}', trouvé {lexer.CHAINE}"
+        lexer.ERREUR(3)
+    UNILEX = lexer.ANALEX()  # consume ')'
+    machine.P_CODE[machine.CO]     = machine.APPF
+    machine.P_CODE[machine.CO + 1] = addr_fct
+    machine.P_CODE[machine.CO + 2] = nb_params
+    machine.CO += 3
+    return True
+
 def INST_NON_COND():
     return (AFFECTATION() or LECTURE() or ECRITURE() or BLOC() or INST_REPE())
 
@@ -279,6 +401,19 @@ def AFFECTATION():
         if idx == -1:
             lexer.MESSAGE_ERREUR = f"Variable '{nom_var}' n'a pas été déclarée."
             lexer.ERREUR(3)
+        if TABLE_IDENT[idx].typ == T_IDENT.FONCTION and nom_var == FONCTION_COURANTE:
+            UNILEX = lexer.ANALEX()
+            if UNILEX != TokenType.AFF:
+                lexer.MESSAGE_ERREUR = f"Attendu ':=', trouvé '{lexer.CHAINE}'"
+                lexer.ERREUR(3)
+            UNILEX = lexer.ANALEX()
+            if EXP():
+                machine.P_CODE[machine.CO] = machine.AFFR
+                machine.CO += 1
+                return True
+            else:
+                lexer.MESSAGE_ERREUR = f"Expression incorrecte dans l'affectation de retour '{nom_var}'"
+                lexer.ERREUR(3)
         if TABLE_IDENT[idx].typ != T_IDENT.VARIABLE:
             lexer.MESSAGE_ERREUR = f"'{nom_var}' n'est pas une variable."
             lexer.ERREUR(3)
@@ -434,6 +569,16 @@ def TERME():
             machine.P_CODE[machine.CO] = machine.EMPI
             machine.P_CODE[machine.CO+1] = TABLE_IDENT[idx].val
             machine.CO += 2
+        elif TABLE_IDENT[idx].typ == T_IDENT.PARAMETRE:
+            machine.P_CODE[machine.CO]     = machine.EMPL
+            machine.P_CODE[machine.CO + 1] = TABLE_IDENT[idx].adrv
+            machine.CO += 2
+        elif TABLE_IDENT[idx].typ == T_IDENT.FONCTION:
+            UNILEX = lexer.ANALEX()
+            if UNILEX != TokenType.PAROUV:
+                lexer.MESSAGE_ERREUR = f"Attendu '(' pour appel de fonction '{nom_var}'"
+                lexer.ERREUR(3)
+            return APP_FCT(nom_var, idx)
         else:
             lexer.MESSAGE_ERREUR = f"'{nom_var}' n'est pas une constante ou variable."
             lexer.ERREUR(3)

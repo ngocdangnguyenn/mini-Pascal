@@ -4,6 +4,8 @@ class T_IDENT:
     VARIABLE = "variable"
     CONSTANTE = "constante"
     PROGRAMME = "programme"
+    FONCTION = "fonction"
+    PARAMETRE = "parametre"
 
 class T_ENREG_IDENT:
     def __init__(self, nom, typ):
@@ -15,6 +17,11 @@ class T_ENREG_IDENT:
         elif typ == T_IDENT.CONSTANTE:
             self.typc = None
             self.val = None
+        elif typ == T_IDENT.FONCTION:
+            self.nb_params = 0
+            self.adresse = 0
+        elif typ == T_IDENT.PARAMETRE:
+            self.adrv = None
 
 NB_IDENT_MAX = 100
 TAILLE_TABLE_HACHAGE = 211
@@ -69,21 +76,49 @@ def INSERER(nom, genre):
     
     return indice
 
+def SUPPRIMER(nom):
+    h = FONCTION_HACHAGE(nom)
+    courant = TABLE_HACHAGE[h]
+    precedent = None
+    while courant is not None:
+        if TABLE_IDENT[courant.indice].nom == nom:
+            if precedent is None:
+                TABLE_HACHAGE[h] = courant.suivant
+            else:
+                precedent.suivant = courant.suivant
+            return
+        precedent = courant
+        courant = courant.suivant
+
 def AFFICHE_TABLE_IDENT():
-    print("\n" + "=" * 80)
+    import src.parser as _parser
+    val_chaines = _parser.VAL_DE_CONST_CHAINE
+    print("\n" + "=" * 62)
     print("TABLE DES IDENTIFICATEURS")
-    print("=" * 80)
-    print(f"| {'Indice':<8} | {'Nom':<20} | {'Genre':<15} | {'Hash':<8} |")
-    print("=" * 80)
-    
+    print("=" * 62)
+    print(f"  {'#':<4} {'Nom':<16} {'Genre':<12} Détail")
+    print("-" * 62)
     for i in range(NB_IDENT):
-        if TABLE_IDENT[i] is not None:
-            enreg = TABLE_IDENT[i]
-            h = FONCTION_HACHAGE(enreg.nom)
-            print(f"| {i:<8} | {enreg.nom:<20} | {enreg.typ:<15} | {h:<8} |")
-    
-    print("=" * 80)
-    print(f"Total: {NB_IDENT} identificateurs\n")
+        enreg = TABLE_IDENT[i]
+        if enreg is None:
+            continue
+        if enreg.typ == T_IDENT.VARIABLE:
+            detail = f"adrv = {enreg.adrv}"
+        elif enreg.typ == T_IDENT.CONSTANTE:
+            if enreg.typc == 0:
+                detail = f"entier, val = {enreg.val}"
+            else:
+                s = val_chaines[enreg.val - 1] if enreg.val <= len(val_chaines) else f"chaine#{enreg.val}"
+                detail = f"chaine, val = '{s}'"
+        elif enreg.typ == T_IDENT.FONCTION:
+            detail = f"nb_params = {enreg.nb_params}, adresse = {enreg.adresse}"
+        elif enreg.typ == T_IDENT.PARAMETRE:
+            detail = f"adrv = {enreg.adrv}  (position dans le cadre)"
+        else:
+            detail = ""
+        print(f"  [{i}] {enreg.nom:<16} {enreg.typ:<12} {detail}")
+    print("=" * 62)
+    print(f"Total : {NB_IDENT} identificateur(s)")
 
 def REINITIALISER_TABLE():
     global NB_IDENT, TABLE_IDENT, TABLE_HACHAGE

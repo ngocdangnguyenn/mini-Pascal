@@ -185,7 +185,8 @@ def INITIALISER(nom):
     CARLU = ''
     MESSAGE_ERREUR = ""
     TABLE_MOTS_RESERVES = [
-        "ALORS", "CONST", "DEBUT", "ECRIRE", "FAIRE", "FIN",
+        "ALORS", "CONST", "DEBUT", "ECRIRE", "ENTIER",
+        "FAIRE", "FIN", "FONCTION",
         "LIRE", "PROGRAMME", "SI", "SINON", "TANTQUE", "VAR"
     ]
     LIRE_CAR()

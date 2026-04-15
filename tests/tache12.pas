@@ -1,4 +1,6 @@
-PROGRAMME myApp; {bonjour!! {okay}}
+{ Taches 1 et 2 : jeu d'essai pour l'analyseur lexical et la table des identificateurs. }
+
+PROGRAMME myApp;
 CONST
 	x = 'a',
 	b = 2;
